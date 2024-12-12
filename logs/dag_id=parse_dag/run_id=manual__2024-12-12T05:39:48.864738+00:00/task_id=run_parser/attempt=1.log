@@ -1,0 +1,26 @@
+[2024-12-12T05:39:53.055+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2024-12-12T05:39:53.066+0000] {taskinstance.py:2613} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: parse_dag.run_parser manual__2024-12-12T05:39:48.864738+00:00 [queued]>
+[2024-12-12T05:39:53.070+0000] {taskinstance.py:2613} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: parse_dag.run_parser manual__2024-12-12T05:39:48.864738+00:00 [queued]>
+[2024-12-12T05:39:53.070+0000] {taskinstance.py:2866} INFO - Starting attempt 1 of 2
+[2024-12-12T05:39:53.077+0000] {taskinstance.py:2889} INFO - Executing <Task(PythonOperator): run_parser> on 2024-12-12 05:39:48.864738+00:00
+[2024-12-12T05:39:53.085+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:70: DeprecationWarning: This process (pid=100) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2024-12-12T05:39:53.086+0000] {standard_task_runner.py:72} INFO - Started process 102 to run task
+[2024-12-12T05:39:53.085+0000] {standard_task_runner.py:104} INFO - Running: ['***', 'tasks', 'run', 'parse_dag', 'run_parser', 'manual__2024-12-12T05:39:48.864738+00:00', '--job-id', '5', '--raw', '--subdir', 'DAGS_FOLDER/parse_dag.py', '--cfg-path', '/tmp/tmpj2yvn1n4']
+[2024-12-12T05:39:53.086+0000] {standard_task_runner.py:105} INFO - Job 5: Subtask run_parser
+[2024-12-12T05:39:53.115+0000] {task_command.py:467} INFO - Running <TaskInstance: parse_dag.run_parser manual__2024-12-12T05:39:48.864738+00:00 [running]> on host b811c5c46b2e
+[2024-12-12T05:39:53.160+0000] {taskinstance.py:3132} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='***' AIRFLOW_CTX_DAG_ID='parse_dag' AIRFLOW_CTX_TASK_ID='run_parser' AIRFLOW_CTX_EXECUTION_DATE='2024-12-12T05:39:48.864738+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2024-12-12T05:39:48.864738+00:00'
+[2024-12-12T05:39:53.162+0000] {logging_mixin.py:190} INFO - Task instance is in running state
+[2024-12-12T05:39:53.162+0000] {logging_mixin.py:190} INFO -  Previous state of the Task instance: queued
+[2024-12-12T05:39:53.162+0000] {logging_mixin.py:190} INFO - Current task name:run_parser state:running start_date:2024-12-12 05:39:53.066684+00:00
+[2024-12-12T05:39:53.163+0000] {logging_mixin.py:190} INFO - Dag name:parse_dag and current dag run status:running
+[2024-12-12T05:39:53.163+0000] {taskinstance.py:731} INFO - ::endgroup::
+[2024-12-12T05:39:53.252+0000] {logging_mixin.py:190} INFO - Parsing the page...
+[2024-12-12T05:42:04.213+0000] {local_task_job_runner.py:346} WARNING - State of this instance has been externally set to failed. Terminating instance.
+[2024-12-12T05:42:04.255+0000] {local_task_job_runner.py:245} INFO - ::endgroup::
+[2024-12-12T05:42:04.270+0000] {process_utils.py:132} INFO - Sending 15 to group 102. PIDs of all processes in the group: [102]
+[2024-12-12T05:42:04.276+0000] {process_utils.py:87} INFO - Sending the signal 15 to group 102
+[2024-12-12T05:42:04.321+0000] {taskinstance.py:3093} ERROR - Received SIGTERM. Terminating subprocesses.
+[2024-12-12T05:42:05.635+0000] {taskinstance.py:340} INFO - ::group::Post task execution logs
+[2024-12-12T05:42:06.107+0000] {process_utils.py:80} INFO - Process psutil.Process(pid=102, status='terminated', exitcode=0, started='05:39:52') (102) terminated with exit code 0
