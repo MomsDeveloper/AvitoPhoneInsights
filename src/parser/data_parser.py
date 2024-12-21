@@ -55,16 +55,26 @@ def get_parsing_pages(output_folder):
     return start_page_number, end_page_number
 
 def parse_pages(output_folder, driver, start_page_number, end_page_number):
-    columns = [
+    product_columns = [
     'title', 'price', 'characteristics', 
     'description', 'views', 'date', 'rating',
-    'location', 'link'
+    'location', 'link', 'seller_id', 'today_views'
+    , 'about'
     ]
+
+    seller_columns = [
+        'seller_id', 'name', 'rating', 'reviews',
+        'subscribers', 'subscriptions', 'registered', 
+        'done_deals', 'active_deals', 'docs_confirmed',
+        'phone_confirmed', 'response_time'
+    ]
+
     for page_num in range(start_page_number, end_page_number):
         
         print(f"Начали парсинг страницы # {page_num}")
 
-        df_page = pd.DataFrame(columns=columns)
+        df_page = pd.DataFrame(columns=product_columns)
+        df_seller = pd.DataFrame(columns=seller_columns)
         
         try:
             # Загрузка страницы с объявлениями
@@ -73,37 +83,36 @@ def parse_pages(output_folder, driver, start_page_number, end_page_number):
             time.sleep(PAUSE_DURATION_SECONDS)
 
             # Получаем HTML-код страницы
-            page_source = driver.page_source
-            soup = BeautifulSoup(page_source, 'html.parser')
+            soup = BeautifulSoup(driver.page_source, 'html.parser')
     
             # Извлекаем ссылки на объявления на текущей странице
             links = get_ad_urls(soup)
 
             for link in tqdm(links):
-                
+                # check if link is already in the database
+                # ...
                 try:
                     # Переход на страницу объявления
                     driver.get(link)
                     time.sleep(PAUSE_DURATION_SECONDS)  # Задержка для полной загрузки
 
                     # Парсим данные на странице объявления (название, цена, фото, описание и т.д.)
-                    ad_data = parse_avito_page(driver=driver) # <- словарик 
+                    ad_data, seller_data = parse_avito_page(driver=driver) # <- словарик 
                     ad_data['link'] = link
                     # ad_data['photo'] = get_photos(driver=driver, cnt=5)
-
-                    df_page = pd.concat([df_page, pd.DataFrame([ad_data])], ignore_index=True)
-
                     
+                    df_page = pd.concat([df_page, pd.DataFrame([ad_data])], ignore_index=True)
+                    df_seller = pd.concat([df_seller, pd.DataFrame([seller_data])], ignore_index=True)
                 except TimeoutException:
                     print(f"Ошибка: объявление {link} не загрузилось, пропускаем...")
                     continue
                 except Exception as e:
                     print(f"Произошла ошибка при обработке объявления {link}: {e}")
                     continue
-
+            
             # Сохраняем данные для текущей страницы в DataFrame
             df_page.to_parquet(f'{output_folder}/phones_data_page_{page_num}.parquet')
-
+            df_seller.to_parquet(f'{output_folder}/sellers_data_page_{page_num}.parquet')
         except TimeoutException:
             print(f"Ошибка: страница {page_num} не загрузилась, пропускаем...")
             continue
@@ -112,19 +121,11 @@ def parse_pages(output_folder, driver, start_page_number, end_page_number):
             continue
 
 def parse_data():
-    # service = Service(GeckoDriverManager().install())
     options = webdriver.FirefoxOptions()
-    # service = Service(ChromeDriverManager().install())
-    # options = webdriver.ChromeOptions()
-
-    # options.add_argument("--headless")
-    # options.add_argument("--disable-gpu")
-    # options.add_argument("--no-sandbox")
-    # options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--headless")
     driver = webdriver.Remote(options=options, command_executor='http://selenium-firefox:4444')
-    # driver = webdriver.Chrome(service=service, options=options)
 
-    output_folder = "data8"
+    output_folder = "/home/airflow/parser/data8"
     start_page_number, end_page_number = get_parsing_pages(output_folder)
     parse_pages(output_folder, driver, start_page_number, end_page_number)    
 
