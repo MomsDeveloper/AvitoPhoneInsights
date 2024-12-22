@@ -10,7 +10,20 @@ def parse_avito_page(driver):
     page_source = driver.page_source
     soup = BeautifulSoup(page_source, 'html.parser')
 
-    res = {}
+    res = {
+        'link': None,
+        'title': None,
+        'price': None,
+        'description': None,
+        'location': None,
+        'views': None,
+        'today_views': None,
+        'date': None,
+        'seller_id': None,
+        'about': None,
+        'characteristics': None
+    }
+
     seller_data = {}
 
     try:
@@ -48,6 +61,8 @@ def parse_avito_page(driver):
     # Парсинг просмотров 
     try:
         views = soup.find('span', {'data-marker': 'item-view/total-views'}).text
+        # delete all non-digit characters
+        views = re.sub(r'\D', '', views)
         res['views'] = views
     except AttributeError:
         pass
@@ -55,6 +70,8 @@ def parse_avito_page(driver):
     # Парсинг просмотров за сегодня
     try:
         views = soup.find('span', {'data-marker': 'item-view/today-views'}).text
+        # delete all non-digit characters
+        views = re.sub(r'\D', '', views)
         res['today_views'] = views
     except AttributeError:
         pass
@@ -63,18 +80,6 @@ def parse_avito_page(driver):
     try:
         date = soup.find('span', {'data-marker': 'item-view/item-date'}).text
         res['date'] = date
-    except AttributeError:
-        pass
-
-    # Парсинг оценки продавца
-    try:
-        rating = soup.find('div', {'data-marker': 'item-view/seller-info'})
-        if rating:
-            rating = rating.find('span', class_=lambda x: x and 'styles-module-size_m-n6S6Y' in x).text
-            res['rating'] = rating
-        else:
-            print("Оценка продавца не найдена")
-
     except AttributeError:
         pass
 
@@ -142,7 +147,19 @@ def parse_seller_page(driver):
 
     page_source = driver.page_source
     soup = BeautifulSoup(page_source, 'html.parser')
-    seller_data = {}
+    seller_data = {
+        'name': None,
+        'rating': None,
+        'reviews': None,
+        'subscribers': None,
+        'subscriptions': None,
+        'registered': None,
+        'done_deals': None,
+        'active_deals': None,
+        'docs_confirmed': None,
+        'phone_confirmed': None,
+        'response_time': None
+    }
 
     try:
         name = soup.find('h1').text
@@ -153,13 +170,15 @@ def parse_seller_page(driver):
     # Парсинг оценки продавца
     try:
         rating = soup.find('span', {'data-marker': 'profile/score'}).text
-        seller_data['rating'] = rating
+        seller_data['rating'] = rating.replace(',', '.')
     except AttributeError:
         pass
     
     # Парсинг количества отзывов
     try:
         reviews = soup.find('a', {'data-marker': 'profile/summary'}).text
+        # delete all non-digit characters
+        reviews = re.sub(r'\D', '', reviews)
         seller_data['reviews'] = reviews
     except AttributeError:
         pass
@@ -191,6 +210,9 @@ def parse_seller_page(driver):
     try:
         active_count = soup.find('span', string="Активные").find_next('span').text
         done_count = soup.find('span', string="Завершённые").find_next('span').text
+        # delete all non-digit characters
+        active_count = re.sub(r'\D', '', active_count)
+        done_count = re.sub(r'\D', '', done_count)
         seller_data['active_deals'] = active_count
         seller_data['done_deals'] = done_count
     except AttributeError:
@@ -213,13 +235,25 @@ def parse_seller_page(driver):
     return seller_data
 
 def parse_seller_without_page(soup):
-    seller_data = {}
+    seller_data = {
+        'name': None,
+        'rating': None,
+        'reviews': None,
+        'subscribers': None,
+        'subscriptions': None,
+        'registered': None,
+        'done_deals': None,
+        'active_deals': None,
+        'docs_confirmed': None,
+        'phone_confirmed': None,
+        'response_time': None
+    }
 
     seller_data['name'] = 'Unknown'
     # Парсинг оценки продавца
     try:
         rating = soup.find('div', {'class': 'seller-info-rating'}).span.text
-        seller_data['rating'] = rating
+        seller_data['rating'] = rating.replace(',', '.')
                         
     except AttributeError:
         pass
@@ -227,6 +261,8 @@ def parse_seller_without_page(soup):
     # Парсинг количества отзывов
     try:
         reviews = soup.find('a', {'data-marker': 'rating-caption/rating'}).span.text
+        # delete all non-digit characters
+        reviews = re.sub(r'\D', '', reviews)
         seller_data['reviews'] = reviews
     except AttributeError:
         pass

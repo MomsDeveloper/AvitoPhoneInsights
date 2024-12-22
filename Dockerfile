@@ -25,8 +25,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy your parser program into the container
-COPY src/parser/data_parser.py /home/airflow/parser/
-COPY src/parser/parser.py /home/airflow/parser/
-COPY src/parser/tools.py /home/airflow/parser/
+COPY src /home/airflow/src
 
-ENV PYTHONPATH "${PYTHONPATH}:/home/airflow/parser/"
+ENV PYTHONPATH "${PYTHONPATH}:/home/airflow/"

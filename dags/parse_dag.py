@@ -3,7 +3,7 @@ from airflow.operators.python_operator import PythonOperator
 from datetime import datetime
 
 def run_parser():
-    import data_parser as dp
+    import src.parser.data_parser as dp
     print("Parsing the page...")
     dp.parse_data()
 
