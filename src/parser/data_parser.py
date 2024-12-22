@@ -59,10 +59,10 @@ def get_parsing_pages(output_folder):
 def parse_pages(output_folder, driver, start_page_number, end_page_number):
     db_session = SessionLocal()
 
-    product_ids = db_session.query(ProductTable.id).all()
+    product_ids = db_session.query(ProductTable.link).all()
     product_ids = [id[0] for id in product_ids]
 
-    seller_ids = db_session.query(SellerTable.id).all()
+    seller_ids = db_session.query(SellerTable.seller_id).all()
     seller_ids = [id[0] for id in seller_ids]
 
     product_columns = [
