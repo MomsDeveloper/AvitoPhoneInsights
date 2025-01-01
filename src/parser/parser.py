@@ -4,7 +4,7 @@ from selenium.webdriver.common.by import By
 import re
 import uuid
 
-PAUSE_DURATION_SECONDS = 2  # Define the pause duration in seconds
+PAUSE_DURATION_SECONDS = 1  # Define the pause duration in seconds
 
 def parse_avito_page(driver): 
     page_source = driver.page_source
@@ -186,9 +186,11 @@ def parse_seller_page(driver):
     # Парсинг количества подписчиков и подписок
     try:
         subs = soup.find('p', {'data-marker': 'favorite-seller-counters'}).text
+        subs = re.sub(r'\s+', '', subs)
         subs = re.findall(r'\d+', subs)
         seller_data['subscribers'] = subs[0]
         seller_data['subscriptions'] = subs[1]
+
     except AttributeError:
         pass
 
