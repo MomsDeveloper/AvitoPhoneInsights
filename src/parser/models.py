@@ -15,6 +15,7 @@ class Product(BaseModel):
     seller_id: str
     today_views: Optional[int]
     about: Optional[str]
+    is_sold: bool
 
     @field_validator('price', mode='before')
     def parse_price(cls, value):

@@ -1,6 +1,8 @@
+import datetime
 from bs4 import BeautifulSoup
 import time
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
 import re
 import uuid
 
@@ -21,10 +23,12 @@ def parse_avito_page(driver):
         'date': None,
         'seller_id': None,
         'about': None,
-        'characteristics': None
+        'characteristics': None,
+        'is_sold': False
     }
 
     seller_data = {}
+    done_deals_list = []
 
     try:
         title = soup.find('h1', {'data-marker': 'item-view/title-info'}).text
@@ -98,7 +102,7 @@ def parse_avito_page(driver):
 
             driver.get(seller_link)
             time.sleep(PAUSE_DURATION_SECONDS)
-            seller_data = parse_seller_page(driver)
+            seller_data, done_deals_list = parse_seller_page(driver)
             seller_id = re.search(r'\/brands\/\w+', seller_link).group()
             seller_data['seller_id'] = seller_id 
                     
@@ -110,8 +114,11 @@ def parse_avito_page(driver):
         res['seller_id'] = seller_data['seller_id']
     except AttributeError:
         pass
-        
-    return res, seller_data
+
+    for deal in done_deals_list:
+        deal['seller_id'] = res['seller_id']
+
+    return res, seller_data, done_deals_list
     
 def parse_section(soup, section_title):
     data = {}
@@ -160,6 +167,7 @@ def parse_seller_page(driver):
         'phone_confirmed': None,
         'response_time': None
     }
+    done_deals_list = []    
 
     try:
         name = soup.find('h1').text
@@ -212,11 +220,25 @@ def parse_seller_page(driver):
     try:
         active_count = soup.find('span', string="Активные").find_next('span').text
         done_count = soup.find('span', string="Завершённые").find_next('span').text
+        
         # delete all non-digit characters
         active_count = re.sub(r'\D', '', active_count)
         done_count = re.sub(r'\D', '', done_count)
         seller_data['active_deals'] = active_count
         seller_data['done_deals'] = done_count
+
+        button = driver.find_element(By.XPATH, "//span[text()='Завершённые']/ancestor::button")
+        
+        ActionChains(driver).move_to_element(button).perform()
+        button.click()
+
+        if done_count and int(done_count) > 0:
+            for _ in range(2):
+                time.sleep(PAUSE_DURATION_SECONDS)
+                done_deals_list.extend(parse_sold_iphones(driver))
+                buttons = driver.find_elements(By.CLASS_NAME, "desktop-1iti18a")[1]
+                if buttons.get_attribute('aria-disabled') == 'false':
+                    buttons.click()
     except AttributeError:
         pass
     
@@ -234,7 +256,7 @@ def parse_seller_page(driver):
     else:
         seller_data['phone_confirmed'] = False
     
-    return seller_data
+    return seller_data, done_deals_list
 
 def parse_seller_without_page(soup):
     seller_data = {
@@ -291,3 +313,63 @@ def parse_seller_without_page(soup):
         pass
     
     return seller_data
+
+def parse_sold_iphones(driver):
+    page_source = driver.page_source
+    soup = BeautifulSoup(page_source, 'html.parser')
+    products = []
+
+    # Locate all the product containers
+    grid_container = soup.find('div', class_='ProfileItemsGrid-root-UoT_a')  # Adjust this class if needed
+    if grid_container:
+        products_divs = grid_container.find_all('div', recursive=False)
+        for product in products_divs:
+            res = {
+                'link': None,
+                'title': None,
+                'price': None,
+                'description': None,
+                'location': None,
+                'views': None,
+                'today_views': None,
+                'date': None,
+                'seller_id': None,
+                'about': None,
+                'characteristics': None,
+                'is_sold': True
+            }
+            try:
+                # Check if the title contains "iPhone"
+                title = product.find('h3', {'itemprop': 'name'}).text
+                res['title'] = title if title else None
+
+                # check using regex if title begins with 'iPhone' or other like iphone
+                if not title or not re.match(r'iphone', title, re.IGNORECASE):
+                    continue
+
+                # Extract the price
+                price_element = product.find('meta', itemprop='price')
+                res['price'] = price_element['content'] if price_element else None
+
+                date_element = product.find('div', class_='geo-root-zPwRk').find_next_sibling('p')
+                res['date'] = date_element.text.strip() if date_element else None
+                
+                # check if delta between current date and date of publication is more than 1 year then create unique id
+                if res['date'] and datetime.datetime.now().year - int(res['date'][-4:]) > 1:
+                    res['link'] = str(uuid.uuid4())
+                else:
+                    # Extract the link
+                    link_tag = product.find("a", {'itemprop': 'url'})
+                    res['link'] = link_tag['href'] if link_tag else None
+
+                # Extract the location
+                location_element = product.find('div', class_='geo-root-zPwRk').find('p')
+                res['location'] = location_element.text.strip() if location_element else None
+
+                # Append extracted data to products list
+                products.append(res)  
+                
+            except Exception as e:
+                print(f"Error parsing product: {e}")
+     
+    return products

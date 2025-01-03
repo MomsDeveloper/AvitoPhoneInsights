@@ -16,6 +16,7 @@ class ProductTable(Base):
     seller_id = Column(String, foreign_key=True, nullable=False)
     today_views = Column(Integer, nullable=True)
     about = Column(Text, nullable=True)
+    is_sold = Column(Boolean, nullable=False)
 
 class SellerTable(Base):
     __tablename__ = 'sellers'

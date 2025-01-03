@@ -69,7 +69,7 @@ def parse_pages(output_folder, driver, start_page_number, end_page_number):
     'title', 'price', 'characteristics', 
     'description', 'views', 'date',
     'location', 'link', 'seller_id', 'today_views'
-    , 'about'
+    , 'about', 'is_sold'
     ]
 
     seller_columns = [
@@ -108,7 +108,7 @@ def parse_pages(output_folder, driver, start_page_number, end_page_number):
                     time.sleep(PAUSE_DURATION_SECONDS)  # Задержка для полной загрузки
 
                     # Парсим данные на странице объявления (название, цена, фото, описание и т.д.)
-                    ad_data, seller_data = parse_avito_page(driver=driver) # <- словарик 
+                    ad_data, seller_data, done_deals_data = parse_avito_page(driver=driver) # <- словарик 
                     ad_data['link'] = link
                     
                     # Validate with Pydantic
@@ -122,6 +122,12 @@ def parse_pages(output_folder, driver, start_page_number, end_page_number):
                         seller_ids.append(seller_data['seller_id'])
                         db_session.add(SellerTable(**seller.model_dump()))
                         df_seller = pd.concat([df_seller, pd.DataFrame([seller_data])], ignore_index=True)
+
+                        done_deals_list = [Product.model_validate(deal) for deal in done_deals_data]
+                        for deal in done_deals_list:
+                            db_session.add(ProductTable(**deal.model_dump()))
+                        for deal in done_deals_data:
+                            df_page = pd.concat([df_page, pd.DataFrame([deal])], ignore_index=True)
 
                 except TimeoutException:
                     print(f"Ошибка: объявление {link} не загрузилось, пропускаем...")
