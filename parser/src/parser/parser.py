@@ -218,9 +218,12 @@ def parse_seller_page(driver):
 
     # Парсинг количества сделок
     try:
-        active_count = soup.find('span', string="Активные").find_next('span').text
-        done_count = soup.find('span', string="Завершённые").find_next('span').text
+        active_span = soup.find('span', string="Активные")
+        done_span = soup.find('span', string="Завершённые")
         
+        active_count = active_span.find_next('span').text if active_span else None
+        done_count = done_span.find_next('span').text if done_span else None
+
         # delete all non-digit characters
         active_count = re.sub(r'\D', '', active_count)
         done_count = re.sub(r'\D', '', done_count)
@@ -236,9 +239,11 @@ def parse_seller_page(driver):
             for _ in range(2):
                 time.sleep(PAUSE_DURATION_SECONDS)
                 done_deals_list.extend(parse_sold_iphones(driver))
-                buttons = driver.find_elements(By.CLASS_NAME, "desktop-1iti18a")[1]
-                if buttons.get_attribute('aria-disabled') == 'false':
-                    buttons.click()
+                buttons = driver.find_elements(By.CLASS_NAME, "desktop-1iti18a")
+                if len(buttons) > 1:
+                    button = buttons[1]
+                    if button.get_attribute('aria-disabled') == 'false':
+                        button.click()
     except AttributeError:
         pass
     
@@ -340,8 +345,12 @@ def parse_sold_iphones(driver):
             }
             try:
                 # Check if the title contains "iPhone"
-                title = product.find('h3', {'itemprop': 'name'}).text
-                res['title'] = title if title else None
+                title_element = product.find('p', {'itemprop': 'name'})
+                if title_element:
+                    title = title_element.text
+                    res['title'] = title if title else None
+                else:
+                    continue
 
                 # check using regex if title begins with 'iPhone' or other like iphone
                 if not title or not re.match(r'iphone', title, re.IGNORECASE):
