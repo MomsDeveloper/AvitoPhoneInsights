@@ -20,11 +20,7 @@ month_map = {
 }
 
 def parse_timestamp(timestamp):
-    print()
-    print(timestamp)
-    # cleaned = timestamp[2:].strip()
     cleaned = timestamp.replace(' · ', ' в ').replace('в ', '').strip()
-    print(cleaned)
     for ru_month, en_month in month_map.items():
         if ru_month in cleaned:
             cleaned = cleaned.replace(ru_month, en_month)
@@ -35,7 +31,6 @@ def parse_timestamp(timestamp):
         cleaned = cleaned.replace(
             'вчера', (datetime.now() - pd.Timedelta(days=1)).strftime('%d %B'))
 
-    print(cleaned)
     # check if year is not present (like 20...)
     if not cleaned[-4:].isdigit():
         # if day and month is 01-01 year is now
@@ -60,7 +55,6 @@ def parse_timestamp(timestamp):
 
 
 # Getting new features from characteristics of the data
-
 def parse_characteristics(characteristics):
     if not characteristics:
         return None, None, None, None

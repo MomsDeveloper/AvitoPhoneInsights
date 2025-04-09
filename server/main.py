@@ -19,7 +19,6 @@ async def phone_consumer(topic: str, bootstrap_servers: str):
             try:
                 phone_data = json.loads(message.value.decode('utf-8'))
                 phone_df = prep.clean_phone([phone_data])
-                print(phone_df['characteristics'][0])
                 phones_headers = phone_df.columns
 
                 for _, row in phone_df.iterrows():
