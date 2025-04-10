@@ -45,5 +45,12 @@ CREATE TABLE IF NOT EXISTS Product (
     is_sold BOOLEAN NOT NULL
 );
 
+-- Initialize Telegram subscribers table
+CREATE TABLE Subscribers (
+    chat_id BIGINT PRIMARY KEY,
+    subscribed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE Seller TO myuser;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE Product TO myuser;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE Subscribers TO myuser;
