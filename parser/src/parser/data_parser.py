@@ -7,18 +7,19 @@ from tqdm import tqdm
 from kafka import KafkaProducer
 import psycopg2
 import json
+from stealthenium import stealth
+import random
 
 from src.parser.models import Product, Seller
 from src.parser.parser import parse_avito_page
 from src.parser.tools import get_ad_urls
 
 URL_TEMPLATE = "https://www.avito.ru/sankt-peterburg/telefony/mobilnye_telefony/apple-ASgBAgICAkS0wA3OqzmwwQ2I_Dc?p="
-PAUSE_DURATION_SECONDS = 2
 NUM_PAGES = 2
 
 # Kafka producer
 producer = KafkaProducer(
-    bootstrap_servers="localhost:9092",
+    bootstrap_servers="kafka:29092",
     value_serializer=lambda v: json.dumps(v).encode("utf-8")
 )
 
@@ -30,7 +31,7 @@ def send_seller(data):
     producer.send("seller_listings", value=data)
     producer.flush()
 
-def get_parsing_pages(output_folder):
+def get_parsing_pages():
 
     start_page_number = 1
     end_page_number = start_page_number + NUM_PAGES
@@ -40,8 +41,8 @@ def get_parsing_pages(output_folder):
 
     return start_page_number, end_page_number
 
-def parse_pages(output_folder, driver, start_page_number, end_page_number):
-    conn = psycopg2.connect("dbname=mydatabase user=myuser password=mypassword host=localhost port=5432")
+def parse_pages(driver, start_page_number, end_page_number):
+    conn = psycopg2.connect("dbname=mydatabase user=myuser password=mypassword host=postgres port=5432")
     cursor = conn.cursor()
 
     cursor.execute("SELECT link FROM product")
@@ -58,7 +59,7 @@ def parse_pages(output_folder, driver, start_page_number, end_page_number):
             # Загрузка страницы с объявлениями
             url = URL_TEMPLATE + str(page_num)
             driver.get(url)
-            time.sleep(PAUSE_DURATION_SECONDS)
+            time.sleep(random.randint(2, 5))
 
             # Получаем HTML-код страницы
             soup = BeautifulSoup(driver.page_source, 'html.parser')
@@ -72,7 +73,7 @@ def parse_pages(output_folder, driver, start_page_number, end_page_number):
                 try:
                     # Переход на страницу объявления
                     driver.get(link)
-                    time.sleep(PAUSE_DURATION_SECONDS)  # Задержка для полной загрузки
+                    time.sleep(random.randint(2, 5))
 
                     # Парсим данные на странице объявления (название, цена, фото, описание и т.д.)
                     ad_data, seller_data, done_deals_data = parse_avito_page(driver=driver) # <- словарик 
@@ -105,13 +106,23 @@ def parse_pages(output_folder, driver, start_page_number, end_page_number):
             print(f"Произошла ошибка на странице {page_num}: {e}")
             continue
 
-def parse_data():
-    options = webdriver.FirefoxOptions()
-    # options.add_argument("--headless")
-    driver = webdriver.Remote(options=options, command_executor='http://selenium-firefox:4444')
 
-    output_folder = "/home/airflow/parser/data8"
-    start_page_number, end_page_number = get_parsing_pages(output_folder)
-    parse_pages(output_folder, driver, start_page_number, end_page_number)    
+def parse_data():
+    options = webdriver.ChromeOptions()
+
+    driver = webdriver.Remote(options=options, command_executor='http://selenium-chrome:4444')
+
+    stealth(driver,
+        languages=["en-US", "en"],
+        vendor="Google Inc.",
+        platform="Win32",
+        webgl_vendor="Intel Inc.",
+        fix_hairline=True,
+        run_on_insecure_origins=True,
+        pass_background=True,
+    )
+
+    start_page_number, end_page_number = get_parsing_pages()
+    parse_pages(driver, start_page_number, end_page_number)    
 
     driver.quit()

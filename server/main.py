@@ -51,6 +51,7 @@ async def phone_consumer(topic: str, bootstrap_servers: str):
     
     try:
         async for message in consumer:
+            print(f"Received message: {message.value}")
             try:
                 phone_data = json.loads(message.value.decode('utf-8'))
                 phone_df = prep.clean_phone([phone_data])
