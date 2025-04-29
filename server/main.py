@@ -1,6 +1,7 @@
 import asyncio
 # from kafka import KafkaConsumer
-import json 
+import json
+import traceback
 import pandas as pd
 import analytics.preprocessor as prep
 from aiokafka import AIOKafkaConsumer
@@ -41,6 +42,31 @@ async def process_price_coeff(conn, phone_id):
     price_coeff = price / avg_price if avg_price else None
 
     return price_coeff
+
+async def filter_message(conn, chat_id, product):
+    query = """
+    SELECT is_pro, is_max, capacity, condition, version, rating
+    FROM subscribers_filters
+    WHERE chat_id = $1
+    """
+
+    result = await conn.fetch(query, chat_id)
+    if (not result) or len(result) == 0:
+        return True
+
+    filters = { 
+        'is_pro': result[0]['is_pro'],
+        'is_max': result[0]['is_max'],
+        'capacity': result[0]['capacity'],
+        'condition': result[0]['condition'],
+        'version': result[0]['version'],
+        'rating': result[0]['rating'],
+    }
+    # Проверяем фильтры
+    for key, value in filters.items():
+        if getattr(product, key, None) != value and ((value is not None)):
+            return False
+    return True
 
 async def phone_consumer(topic: str, bootstrap_servers: str):
     bot = Bot(token=config.BOT_TOKEN)
@@ -87,8 +113,13 @@ async def phone_consumer(topic: str, bootstrap_servers: str):
                             message_text = f"📱 New phone: {product.title}\n💰 Price: {product.price} \n Link: {product.link} \n Coeff: {price_coeff}" 
                             for sub in subscribers:
                                 try:
+                                    # Проверка фильтров
+                                    if not await filter_message(conn, sub['chat_id'], product):
+                                        continue
+                                    # Отправка сообщения
                                     await bot.send_message(sub['chat_id'], message_text)
                                 except Exception as e:
+                                    print(traceback.format_exc())
                                     print(f"Error sending to {sub['chat_id']}: {e}")
             except Exception as e:
                 print(f"Error processing message: {e}")

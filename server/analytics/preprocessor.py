@@ -82,10 +82,14 @@ def parse_characteristics(characteristics):
     if is_max_match:
         is_max = True
 
-    capacity_match = re.search(
-        r'(\d+) ?[gGtTгГтТ][bBбБ]', characteristics['Встроенная память'])
-    if capacity_match:
-        capacity = int(capacity_match.group(1))
+    if re.search(
+        r'1 ?[tTтТ][bBбБ]', characteristics['Встроенная память']):
+        capacity = 1024
+    else:
+        capacity_match = re.search(
+            r'(\d+) ?[gGtTгГтТ][bBбБ]', characteristics['Встроенная память'])
+        if capacity_match:
+            capacity = int(capacity_match.group(1))
 
     return version, is_pro, is_max, capacity
 
@@ -114,10 +118,17 @@ def parse_title(title):
     if "max" in title.lower():
         is_max = True
 
-    capacity_match = re.search(r'(\d+) ?[gGtTгГтТ][bBбБ]', title)
+    # capacity_match = re.search(r'(\d+) ?[gGtTгГтТ][bBбБ]', title)
 
-    if capacity_match:
-        capacity = int(capacity_match.group(1))
+    # if capacity_match:
+    #     capacity = int(capacity_match.group(1))
+
+    if re.search(r'1 ?[tTтТ][bBбБ]', title):
+        capacity = 1024
+    else:
+        capacity_match = re.search(r'(\d+) ?[gGtTгГтТ][bBбБ]', title)
+        if capacity_match:
+            capacity = int(capacity_match.group(1))
 
     return version, is_pro, is_max, capacity
 

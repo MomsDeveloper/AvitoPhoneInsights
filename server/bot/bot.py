@@ -44,6 +44,14 @@ class PhoneForm(StatesGroup):
     docs_confirmed = State()
     phone_confirmed = State()
 
+class FilterState(StatesGroup):
+    version = State()
+    condition = State()
+    is_pro = State()
+    is_max = State()
+    capacity = State()
+    rating = State()
+
 
 dp = Dispatcher()
 
@@ -58,7 +66,8 @@ async def create_db_pool():
 
 
 start_keyboard = ReplyKeyboardMarkup(
-    keyboard=[[KeyboardButton(text="/predict_price")]],
+    keyboard=[[KeyboardButton(text="/predict_price")], 
+             [KeyboardButton(text="/filter")]],
     resize_keyboard=True,
     input_field_placeholder="Choose action"
 )
@@ -102,6 +111,8 @@ class RatingOptions(StrEnum):
     RATING_3 = "3"
     RATING_4 = "4"
     RATING_5 = "5"
+
+undefined_button = [[KeyboardButton(text="не имеет значения")]]
 
 version_keyboard = ReplyKeyboardMarkup(
     keyboard=[
@@ -172,6 +183,138 @@ async def command_start_handler(message: Message, pool: asyncpg.Pool) -> None:
 async def cancel_handler(message: Message, state: FSMContext) -> None:
     await state.clear()
     await message.answer("❌ Процесс отменен", reply_markup=start_keyboard)
+
+@dp.message(Command("filter"))
+async def filter_handler(message: Message, state: FSMContext) -> None:
+    rows = version_keyboard.keyboard + undefined_button
+    await message.answer(
+        "Введите фильтр для поиска телефона! /cancel\n\n"
+        "Введите версию телефона",
+        reply_markup=ReplyKeyboardMarkup(
+            keyboard=rows,
+            resize_keyboard=True,
+            input_field_placeholder="Выберите версию"
+        )
+    )
+    await state.set_state(FilterState.version)
+
+@dp.message(FilterState.version, F.text.in_(VersionOptions) | (F.text.casefold() == "не имеет значения"))
+async def process_filter_version(message: Message, state: FSMContext):
+    rows = state_keyboard.keyboard + undefined_button
+    await state.update_data(version=int(message.text) if message.text != "не имеет значения" else None)
+    await message.answer("Выберите состояние телефона", reply_markup=ReplyKeyboardMarkup(
+        keyboard=rows,
+        resize_keyboard=True,
+        input_field_placeholder="Выберите состояние"
+    ))
+    await state.set_state(FilterState.condition)
+
+@dp.message(FilterState.condition, F.text.in_(StateOptions) | (F.text.casefold() == "не имеет значения"))
+async def process_filter_condition(message: Message, state: FSMContext):
+    rows = confirm_keyboard.keyboard + undefined_button
+    await state.update_data(condition=message.text)
+    await message.answer("Это Pro версия?", reply_markup=ReplyKeyboardMarkup(
+        keyboard=rows,
+        resize_keyboard=True,
+        input_field_placeholder="Подтвердите"
+    ))
+    await state.set_state(FilterState.is_pro)
+    
+@dp.message(FilterState.is_pro, F.text.in_(ConfirmOptions) | (F.text.casefold() == "не имеет значения"))
+async def process_filter_is_pro(message: Message, state: FSMContext):
+    if message.text == "не имеет значения":
+        await state.update_data(is_pro=None)
+    elif message.text.lower() not in ["да", "нет"]:
+        await message.answer("⚠️ Пожалуйста, ответьте 'да' или 'нет'")
+        return
+    else:
+        await state.update_data(is_pro=message.text.lower() == "да")
+    rows = confirm_keyboard.keyboard + undefined_button
+    await message.answer("Это Max версия?", reply_markup=ReplyKeyboardMarkup(
+        keyboard=rows,
+        resize_keyboard=True,
+        input_field_placeholder="Подтвердите"
+    ))
+    await state.set_state(FilterState.is_max)
+
+@dp.message(FilterState.is_max, F.text.in_(ConfirmOptions) | (F.text.casefold() == "не имеет значения"))
+async def process_filter_is_max(message: Message, state: FSMContext):
+    if message.text == "не имеет значения":
+        await state.update_data(is_max=None)
+    elif message.text.lower() not in ["да", "нет"]:
+        await message.answer("⚠️ Пожалуйста, ответьте 'да' или 'нет'")
+        return
+    else:
+        await state.update_data(is_max=message.text.lower() == "да")
+    rows = memory_keyboard.keyboard + undefined_button
+
+    await message.answer("Введите объем памяти (в ГБ):", reply_markup=ReplyKeyboardMarkup(
+        keyboard=rows,
+        resize_keyboard=True,
+        input_field_placeholder="Выберите объем памяти"
+    ))
+    await state.set_state(FilterState.capacity)
+
+@dp.message(FilterState.capacity, F.text.in_(MemoryOptions) | (F.text.casefold() == "не имеет значения"))
+async def process_filter_capacity(message: Message, state: FSMContext):
+    if message.text == "не имеет значения":
+        await state.update_data(capacity=None)
+    elif not message.text.isdigit():
+        await message.answer("⚠️ Пожалуйста, введите число")
+        return
+    else:
+        await state.update_data(capacity=int(message.text))
+    rows = rating_keyboard.keyboard + undefined_button
+    await message.answer("Введите ваш рейтинг (от 0 до 5):", reply_markup=ReplyKeyboardMarkup(
+        keyboard=rows,
+        resize_keyboard=True,
+        input_field_placeholder="Выберите рейтинг"
+    ))
+    await state.set_state(FilterState.rating)
+
+@dp.message(FilterState.rating, F.text.in_(RatingOptions) | (F.text.casefold() == "не имеет значения"))
+async def process_filter_rating(message: Message, state: FSMContext):
+    if message.text == "не имеет значения":
+        await state.update_data(rating=None)
+    else:
+        try:
+            rating = float(message.text)
+            if rating < 0 or rating > 5:
+                raise ValueError("Рейтинг должен быть от 0 до 5")
+        except ValueError:
+            await message.answer("⚠️ Пожалуйста, введите число от 0 до 5")
+            return
+        await state.update_data(rating=rating)
+
+    data = await state.get_data()
+    await state.clear()
+
+    # добавление данных в таблицу фильтров
+    chat_id = message.chat.id
+    try:
+        async with dp["pool"].acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO Subscribers_filters (chat_id, version, condition, is_pro, is_max, capacity, rating)
+                VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (chat_id) DO UPDATE
+                SET version = $2, condition = $3, is_pro = $4, is_max = $5, capacity = $6, rating = $7
+                """,
+                chat_id,
+                None if data.get("version") == "не имеет значения" else data.get("version"),
+                None if data.get("condition") == "не имеет значения" else data.get("condition"),
+                None if data.get("is_pro") == "не имеет значения" else data.get("is_pro"),
+                None if data.get("is_max") == "не имеет значения" else data.get("is_max"),
+                None if data.get("capacity") == "не имеет значения" else data.get("capacity"),
+                None if data.get("rating") == "не имеет значения" else data.get("rating")
+            )
+        await message.answer(
+            "✅ Фильтр успешно добавлен!\n"
+            "Вы можете использовать его для поиска телефонов.",
+            reply_markup=start_keyboard
+        )
+    except Exception as e:
+        logging.error(f"Failed to add filter: {e}")
+        await message.answer("❌ Ошибка при добавлении фильтра. Попробуйте позже.")
 
 
 @dp.message(Command("predict_price"))
