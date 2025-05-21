@@ -9,15 +9,15 @@ def run_parser():
 
 default_args = {
     'owner': 'airflow',
-    'start_date': datetime(2024, 1, 1),
-    'retries': 1,
+    'start_date': datetime(2025, 1, 1),
+    'retries': 3,
 }
 
 with DAG(
     'parse_dag',
     default_args=default_args,
     description='A DAG to parse data from Avito',
-    schedule_interval=None,
+    schedule_interval='*/5 * * * *',  # Every 5 minutes
     catchup=False,
 ) as dag:
 

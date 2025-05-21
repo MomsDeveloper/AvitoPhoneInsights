@@ -146,7 +146,8 @@ def parse_about(soup):
 
 def parse_seller_page(driver):
     try:
-        show_more_button = driver.find_element(By.CLASS_NAME, "Collapse-module-showMoreButton-EuQUL")
+        # show_more_button = driver.find_element(By.CLASS_NAME, "Collapse-module-showMoreButton-EuQUL")
+        show_more_button = driver.find_element(By.XPATH, "//p[text()='Показать все']")
         show_more_button.click()
         time.sleep(PAUSE_DURATION_SECONDS)
     except Exception:

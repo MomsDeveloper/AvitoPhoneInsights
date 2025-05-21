@@ -17,15 +17,20 @@ from xgboost import XGBRegressor
 import pandas as pd
 import asyncpg
 import config
+import joblib
 
 TOKEN = config.BOT_TOKEN
 MODEL_PATH = "./bot/xgb_model.json"
+TRANSFORMER_PATH = "./bot/transformer.pkl"
 
 try:
     model = XGBRegressor()
     model.load_model(MODEL_PATH)
+    transformer = joblib.load(TRANSFORMER_PATH)
+    logging.info("Model and transformer loaded successfully.")
 except Exception as e:
     model = None
+    transformer = None
     logging.error(f"Failed to load model: {e}")
 
 
@@ -319,7 +324,7 @@ async def process_filter_rating(message: Message, state: FSMContext):
 
 @dp.message(Command("predict_price"))
 async def start_prediction(message: Message, state: FSMContext):
-    if not model:
+    if not model or not transformer:
         await message.answer("⚠️ Сервис временно недоступен. Попробуйте позже.")
         return
 
@@ -437,34 +442,12 @@ async def process_done_deals(message: Message, state: FSMContext):
 
 
 @dp.message(PhoneForm.active_deals)
-async def process_active_deals(message: Message, state: FSMContext):
+async def process_phone_confirmed(message: Message, state: FSMContext):
     if not message.text.isdigit():
         await message.answer("⚠️ Пожалуйста, введите число")
         return
 
     await state.update_data(active_deals=int(message.text))
-    await message.answer("Ваши документы подтверждены?", reply_markup=confirm_keyboard)
-    await state.set_state(PhoneForm.docs_confirmed)
-
-
-@dp.message(PhoneForm.docs_confirmed, F.text.in_(ConfirmOptions))
-async def process_docs_confirmed(message: Message, state: FSMContext):
-    if message.text.lower() not in ["да", "нет"]:
-        await message.answer("⚠️ Пожалуйста, ответьте 'да' или 'нет'")
-        return
-
-    await state.update_data(docs_confirmed=message.text.lower() == "да")
-    await message.answer("Ваш номер телефона подтвержден?", reply_markup=confirm_keyboard)
-    await state.set_state(PhoneForm.phone_confirmed)
-
-
-@dp.message(PhoneForm.phone_confirmed, F.text.in_(ConfirmOptions))
-async def process_phone_confirmed(message: Message, state: FSMContext):
-    if message.text.lower() not in ["да", "нет"]:
-        await message.answer("⚠️ Пожалуйста, ответьте 'да' или 'нет'")
-        return
-
-    await state.update_data(phone_confirmed=message.text.lower() == "да")
     data = await state.get_data()
     await state.clear()
 
@@ -474,7 +457,8 @@ async def process_phone_confirmed(message: Message, state: FSMContext):
         # print all features
         logging.info(f"Features for prediction: {features}")
 
-        prediction = model.predict(features)
+        prepared_features = transformer.transform(features)
+        prediction = model.predict(prepared_features)
         await message.answer(
             f"📊 Предполагаемая стоимость: {prediction[0]:.2f} ₽\n"
             "Спасибо за использование сервиса!",
@@ -488,25 +472,13 @@ async def process_phone_confirmed(message: Message, state: FSMContext):
 def prepare_features(data: Dict) -> pd.DataFrame:
     """Преобразование сырых данных в формат для модели"""
     columns = [
-        'version', 'condition_Новое', 'condition_Отличное',
-        'condition_Хорошее', 'condition_Удовлетворительное',
+        'version', 'condition',
         'capacity', 'rating', 'reviews',
         'subscribers', 'subscriptions', 'done_deals',
-        'active_deals', 'is_pro_False', 'is_pro_True',
-        'is_max_False', 'is_max_True', 'docs_confirmed_False',
-        'docs_confirmed_True', 'phone_confirmed_False',
-        'phone_confirmed_True'
+        'active_deals', 'is_pro', 'is_max'
     ]
     features = pd.DataFrame([data])
 
-    features['condition_Новое'] = features['condition'].apply(
-        lambda x: 1 if x == 'Новое' else 0)
-    features['condition_Отличное'] = features['condition'].apply(
-        lambda x: 1 if x == 'Отличное' else 0)
-    features['condition_Хорошее'] = features['condition'].apply(
-        lambda x: 1 if x == 'Хорошее' else 0)
-    features['condition_Удовлетворительное'] = features['condition'].apply(
-        lambda x: 1 if x == 'Удовлетворительное' else 0)
     features['version'] = features['version'].astype(float64)
     features['capacity'] = features['capacity'].astype(int)
     features['subscriptions'] = features['subscriptions'].astype(float64)
@@ -515,22 +487,8 @@ def prepare_features(data: Dict) -> pd.DataFrame:
     features['rating'] = features['rating'].astype(float64)
     features['active_deals'] = features['active_deals'].astype(float64)
     features['subscribers'] = features['subscribers'].astype(float64)
-    features['is_pro_True'] = features['is_pro'].apply(
-        lambda x: 1 if x else 0)
-    features['is_pro_False'] = features['is_pro'].apply(
-        lambda x: 0 if x else 1)
-    features['is_max_True'] = features['is_max'].apply(
-        lambda x: 1 if x else 0)
-    features['is_max_False'] = features['is_max'].apply(
-        lambda x: 0 if x else 1)
-    features['docs_confirmed_True'] = features['docs_confirmed'].apply(
-        lambda x: 1 if x else 0)
-    features['docs_confirmed_False'] = features['docs_confirmed'].apply(
-        lambda x: 0 if x else 1)
-    features['phone_confirmed_True'] = features['phone_confirmed'].apply(
-        lambda x: 1 if x else 0)
-    features['phone_confirmed_False'] = features['phone_confirmed'].apply(
-        lambda x: 0 if x else 1)
+    features['is_pro'] = features['is_pro'].astype(float64)
+    features['is_max'] = features['is_max'].astype(float64)
 
     return features[columns]
 

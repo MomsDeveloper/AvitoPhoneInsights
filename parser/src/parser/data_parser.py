@@ -67,8 +67,9 @@ def parse_pages(driver, start_page_number, end_page_number):
             # Извлекаем ссылки на объявления на текущей странице
             links = get_ad_urls(soup)
             for link in tqdm(links):
+                prepared_link = link.split('?')[0]
                 # check if link is already in the database
-                if link in product_ids:
+                if prepared_link in product_ids:
                     continue
                 try:
                     # Переход на страницу объявления
@@ -77,13 +78,13 @@ def parse_pages(driver, start_page_number, end_page_number):
 
                     # Парсим данные на странице объявления (название, цена, фото, описание и т.д.)
                     ad_data, seller_data, done_deals_data = parse_avito_page(driver=driver) # <- словарик 
-                    ad_data['link'] = link
+                    ad_data['link'] = prepared_link
                     
                     # Validate with Pydantic
                     product = Product.model_validate(ad_data)
                     seller = Seller.model_validate(seller_data)
                     
-                    product_ids.append(link)
+                    product_ids.append(prepared_link)
                     send_phone(product.model_dump())
                     if seller_data['seller_id'] not in seller_ids:
                         seller_ids.append(seller_data['seller_id'])
