@@ -10,9 +10,13 @@ scrape_configs:
     static_configs:
       - targets: ['prometheus:9090']
 
-  - job_name: 'statsd-exporter'
+  - job_name: 'airflow'
+    metrics_path: /metrics
+    scheme: http
     static_configs:
       - targets: ['statsd_exporter:9102']
-  
+        labels:
+          airflow_id: 'airflow'
+
     tls_config:
       insecure_skip_verify: true
