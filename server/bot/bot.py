@@ -72,7 +72,9 @@ async def create_db_pool():
 
 start_keyboard = ReplyKeyboardMarkup(
     keyboard=[[KeyboardButton(text="/predict_price")], 
-             [KeyboardButton(text="/filter")]],
+             [KeyboardButton(text="/filter")],
+                [KeyboardButton(text="/get_filters")],
+                [KeyboardButton(text="/clear_filters")]],
     resize_keyboard=True,
     input_field_placeholder="Choose action"
 )
@@ -278,7 +280,7 @@ async def process_filter_capacity(message: Message, state: FSMContext):
     await state.set_state(FilterState.rating)
 
 @dp.message(FilterState.rating, F.text.in_(RatingOptions) | (F.text.casefold() == "не имеет значения"))
-async def process_filter_rating(message: Message, state: FSMContext):
+async def process_filter_rating(message: Message, state: FSMContext, pool: asyncpg.Pool):
     if message.text == "не имеет значения":
         await state.update_data(rating=None)
     else:
@@ -297,7 +299,7 @@ async def process_filter_rating(message: Message, state: FSMContext):
     # добавление данных в таблицу фильтров
     chat_id = message.chat.id
     try:
-        async with dp["pool"].acquire() as conn:
+        async with pool.acquire() as conn:
             await conn.execute(
                 """
                 INSERT INTO Subscribers_filters (chat_id, version, condition, is_pro, is_max, capacity, rating)
@@ -320,6 +322,48 @@ async def process_filter_rating(message: Message, state: FSMContext):
     except Exception as e:
         logging.error(f"Failed to add filter: {e}")
         await message.answer("❌ Ошибка при добавлении фильтра. Попробуйте позже.")
+
+@dp.message(Command("clear_filters"))
+async def clear_filters(message: Message, pool: asyncpg.Pool) -> None:
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "DELETE FROM subscribers_filters WHERE chat_id = $1",
+                message.chat.id
+            )
+        await message.answer("✅ Все фильтры успешно удалены.", reply_markup=start_keyboard)
+    except Exception as e:
+        logging.error(f"Failed to clear filters: {e}")
+        await message.answer("❌ Ошибка при удалении фильтров. Попробуйте позже.")
+
+
+@dp.message(Command("get_filters"))
+async def get_filters(message: Message, pool: asyncpg.Pool) -> None:
+    try:
+        async with pool.acquire() as conn:
+            filters = await conn.fetch(
+                "SELECT version, condition, is_pro, is_max, capacity, rating FROM subscribers_filters WHERE chat_id = $1",
+                message.chat.id
+            )
+        if not filters:
+            await message.answer("❌ У вас нет сохраненных фильтров.")
+            return
+
+        filter_texts = []
+        for f in filters:
+            filter_texts.append(
+                f"Ваша фильтрация:\n"
+                f"* Версия: {f['version']}\n"
+                f"* Состояние: {f['condition']}\n"
+                f"* Pro: {f['is_pro']}\n"
+                f"* Max: {f['is_max']}\n"
+                f"* Память: {f['capacity']} ГБ\n"
+                f"* Рейтинг: {f['rating']}"
+            )
+        await message.answer("\n".join(filter_texts), reply_markup=start_keyboard)
+    except Exception as e:
+        logging.error(f"Failed to get filters: {e}")
+        await message.answer("❌ Ошибка при получении фильтров. Попробуйте позже.")
 
 
 @dp.message(Command("predict_price"))
